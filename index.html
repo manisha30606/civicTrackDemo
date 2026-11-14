@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Explore a sample municipal complaint workflow in CivicTrack.">
+<title>CivicTrack | Interactive project demo</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f2f4f9;color:#18253e;font:16px/1.55 Inter,system-ui,sans-serif}main,header>div{max-width:1040px;margin:auto;padding:0 24px}header{background:#17233b;color:#fff;padding:28px 0 43px}header strong{color:#c4d3ff}h1{font-size:clamp(32px,5vw,52px);line-height:1.12;margin:23px 0 12px}h2,h3,p{margin:0}header p{max-width:640px;color:#e0e7f6}.meta{font-size:13px;color:#bbc9e9;margin-top:14px}.steps{display:flex;flex-wrap:wrap;gap:8px;margin:24px 0 16px}.card{background:white;border:1px solid #dce2ef;border-radius:14px;padding:clamp(18px,4vw,30px);margin-bottom:16px}.grid{display:grid;grid-template-columns:1.45fr 1fr;gap:16px}.ticket{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;margin:12px 0}.muted{color:#50627e;font-size:14px}.pill{background:#e8edff;color:#243d97;border-radius:20px;padding:4px 12px;font-size:13px;font-weight:700}.controls{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}button{font:inherit;font-weight:650;font-size:14px;padding:9px 13px;border-radius:8px;border:1px solid #cdd7ed;background:white;color:#23386c;cursor:pointer}button[aria-pressed=true],.primary{background:#314aa8;color:white;border-color:#314aa8}button:disabled{opacity:.5;cursor:default}button:focus-visible{outline:3px solid #4263d3;outline-offset:3px}ul{padding-left:20px;margin:12px 0 0}li+li{margin-top:7px}details{margin:10px 0}summary{cursor:pointer;font-weight:650}footer{padding:5px 0 28px}@media(max-width:700px){.grid{grid-template-columns:1fr}main,header>div{padding-inline:16px}}
+</style>
+</head>
+<body>
+<header><div><strong>CivicTrack</strong><h1>From report to resolution</h1><p>Try the workflow for a broken water pipe in Kolkata. Switch roles to submit the report, assign it, and resolve it.</p><p class="meta">Portfolio demo · Fictional data · No account needed</p></div></header>
+<main>
+<nav class="steps" aria-label="Choose a role">
+<button data-role="Citizen">Citizen</button><button data-role="Admin">Admin</button><button data-role="Field Worker">Field Worker</button><button data-role="Follower">Citizen following the report</button>
+</nav>
+<div class="grid">
+<section class="card" aria-labelledby="role"><h2 id="role">Citizen</h2><div class="ticket"><div><h3 id="ticket">Water leaking onto the pavement</h3><p class="muted">CT-DEMO1 · Water Supply · Park Street, Kolkata</p></div><span id="status" class="pill" role="status"></span></div><p id="hint" class="muted"></p><div class="controls"><button id="action" class="primary" type="button"></button><button id="reset" type="button">Reset demo</button></div></section>
+<section class="card"><h2>Activity timeline</h2><ul id="timeline" aria-live="polite"></ul></section>
+</div>
+<section class="card"><h2>How the full app works</h2>
+<details open><summary>Reporting and collaboration</summary><p>Citizens submit a report with a map pin and optional photos. They can browse nearby issues, upvote, follow progress, comment on their own cases, leave resolution feedback, and reopen a case if needed.</p></details>
+<details><summary>Assignments and deadlines</summary><p>Admins assign reports to workers in the relevant department. Workers update assigned cases. The dashboard shows pending, in-progress, resolved, overdue, and recurring cases.</p></details>
+<details><summary>Duplicate and recurring reports</summary><p>Two reports about the same active issue can share one main case and status. When a repaired issue returns, a new case can link to the closed report and keep its own deadline and assignment.</p></details>
+<details><summary>Architecture and access</summary><p>The full app uses Next.js, TypeScript, Express, MongoDB Atlas, and Socket.IO. It enforces role and case permissions on the API. A separate Super Admin portal manages accounts and application settings.</p></details>
+</section>
+<footer class="muted">Demo actions run in this browser session using sample data.</footer>
+</main>
+<script>
+const roles = document.querySelectorAll('[data-role]')
+const action = document.querySelector('#action')
+const timeline = document.querySelector('#timeline')
+const states = ['Draft', 'Pending', 'Assigned', 'In progress', 'Resolved', 'Closed']
+const events = ['Ready to submit', 'Citizen reported the leak', 'Admin assigned the Water Supply worker', 'Worker started the repair', 'Worker marked the repair resolved', 'Admin closed the case']
+const flow = {
+  Citizen: {0: 'Submit sample report'},
+  Admin: {1: 'Assign Water Supply worker', 4: 'Close complaint'},
+  'Field Worker': {2: 'Start work', 3: 'Mark resolved'},
+}
+let stage = 0
+let role = 'Citizen'
+let following = false
+
+function render() {
+  roles.forEach(button => button.setAttribute('aria-pressed', String(button.dataset.role === role)))
+  document.querySelector('#role').textContent = role === 'Follower' ? 'Following' : role
+  document.querySelector('#status').textContent = states[stage]
+  const label = role === 'Follower' && stage > 0
+    ? (following ? 'Unfollow complaint' : 'Follow complaint')
+    : flow[role]?.[stage]
+  action.hidden = !label
+  action.textContent = label ?? ''
+  const nextRole = ['Citizen', 'Admin', 'Field Worker', 'Field Worker', 'Admin'][stage]
+  document.querySelector('#hint').textContent = role === 'Follower'
+    ? (following ? 'You are tracking updates to this sample report.' : 'Follow the sample report once it has been submitted.')
+    : (nextRole ? 'Next action belongs to ' + nextRole + '.' : 'The sample case is complete.')
+  const entries = stage ? events.slice(1, stage + 1) : events.slice(0, 1)
+  timeline.replaceChildren(...entries.map(event => {
+    const item = document.createElement('li')
+    item.textContent = event
+    return item
+  }))
+}
+roles.forEach(button => button.addEventListener('click', () => {role = button.dataset.role; render()}))
+action.addEventListener('click', () => {
+  if (role === 'Follower' && stage > 0) following = !following
+  else if (flow[role]?.[stage]) stage++
+  render()
+})
+document.querySelector('#reset').addEventListener('click', () => {stage = 0; role = 'Citizen'; following = false; render()})
+render()
+</script>
+</body>
+</html>
